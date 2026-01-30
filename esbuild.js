@@ -15,8 +15,26 @@ const opts = {
   minify: !watch,
 };
 
+/** @type {import('esbuild').BuildOptions} */
+const rendererOpts = {
+  entryPoints: ['src/renderer.ts'],
+  bundle: true,
+  outfile: 'dist/renderer.js',
+  format: 'esm',
+  platform: 'browser',
+  target: 'es2020',
+  sourcemap: true,
+  minify: !watch,
+};
+
 if (watch) {
-  esbuild.context(opts).then(ctx => ctx.watch());
+  Promise.all([
+    esbuild.context(opts).then(ctx => ctx.watch()),
+    esbuild.context(rendererOpts).then(ctx => ctx.watch()),
+  ]);
 } else {
-  esbuild.build(opts).catch(() => process.exit(1));
+  Promise.all([
+    esbuild.build(opts),
+    esbuild.build(rendererOpts),
+  ]).catch(() => process.exit(1));
 }

@@ -25,6 +25,14 @@
           { "filenamePattern": "*.mlx" }
         ]
       }
+    ],
+    "notebookRenderer": [
+      {
+        "id": "mlx-output-renderer",
+        "displayName": "MLX Output Renderer",
+        "entrypoint": "./dist/renderer.js",
+        "mimeTypes": ["application/mlx-output+json"]
+      }
     ]
   },
   "scripts": {

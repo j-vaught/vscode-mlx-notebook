@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { MlxNotebookSerializer } from './serializer';
+import { MlxCellStatusBarProvider } from './statusBarProvider';
 
 export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
@@ -7,6 +8,13 @@ export function activate(context: vscode.ExtensionContext) {
       'mlx-notebook',
       new MlxNotebookSerializer(),
       { transientOutputs: true }
+    )
+  );
+
+  context.subscriptions.push(
+    vscode.notebooks.registerNotebookCellStatusBarItemProvider(
+      'mlx-notebook',
+      new MlxCellStatusBarProvider()
     )
   );
 }

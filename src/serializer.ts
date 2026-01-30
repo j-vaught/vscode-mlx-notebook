@@ -23,6 +23,7 @@ export class MlxNotebookSerializer implements vscode.NotebookSerializer {
           const text = formatOutputs(cell.outputs);
           cellObj.outputs = [
             new vscode.NotebookCellOutput([
+              vscode.NotebookCellOutputItem.json(cell.outputs, 'application/mlx-output+json'),
               vscode.NotebookCellOutputItem.text(text, 'text/plain'),
             ]),
           ];
