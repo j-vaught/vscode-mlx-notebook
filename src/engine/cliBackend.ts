@@ -29,6 +29,7 @@ export class CliBackend implements MatlabEngine {
     fs.mkdirSync(this.figureDir, { recursive: true });
 
     // Start persistent MATLAB process with -nodesktop -nosplash
+    const initSentinel = '__MLX_INIT_DONE__';
     return new Promise((resolve, reject) => {
       this.process = spawn(this.matlabPath, ['-nodesktop', '-nosplash'], {
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -36,22 +37,34 @@ export class CliBackend implements MatlabEngine {
 
       let startupBuffer = '';
       let resolved = false;
+      let sentInit = false;
 
       const onData = (data: Buffer) => {
         startupBuffer += data.toString();
-        // MATLAB prints ">>" prompt when ready
-        if (startupBuffer.includes('>>') && !resolved) {
+
+        // Once we see the first prompt, send initialization commands
+        if (startupBuffer.includes('>>') && !sentInit) {
+          sentInit = true;
+          // Restore path, suppress warnings, configure figures, then print sentinel
+          this.process!.stdin!.write(
+            `warning('off','all'); try; restoredefaultpath; matlabrc; end; warning('on','all'); set(0,'DefaultFigureVisible','off'); fprintf('${initSentinel}\\n');\n`
+          );
+        }
+
+        // Wait for init sentinel before marking ready
+        if (startupBuffer.includes(initSentinel) && !resolved) {
           resolved = true;
           this.running = true;
           this.ready = true;
           this.process!.stdout!.removeListener('data', onData);
-          // Suppress warnings and set up figure handling
-          this.sendRaw("warning('off','all'); try; restoredefaultpath; end; warning('on','all'); set(0,'DefaultFigureVisible','off');\n");
           resolve();
         }
       };
 
       this.process.stdout!.on('data', onData);
+
+      // Drain stderr during startup so it doesn't block
+      this.process.stderr!.on('data', () => {});
 
       this.process.on('error', (err) => {
         if (!resolved) reject(new Error(`Failed to start MATLAB: ${err.message}`));
@@ -64,14 +77,14 @@ export class CliBackend implements MatlabEngine {
         if (!resolved) reject(new Error('MATLAB process closed before ready'));
       });
 
-      // Timeout after 60s
+      // Timeout after 120s (path restore can be slow on network volumes)
       setTimeout(() => {
         if (!resolved) {
           resolved = true;
           this.process?.kill();
-          reject(new Error('MATLAB startup timed out after 60s'));
+          reject(new Error('MATLAB startup timed out after 120s'));
         }
-      }, 60000);
+      }, 120000);
     });
   }
 
@@ -139,6 +152,8 @@ export class CliBackend implements MatlabEngine {
           .filter(line => !line.includes('pathdef.m') &&
                           !line.includes('restoredefaultpath') &&
                           !line.includes('initdesktoputils') &&
+                          !line.includes('callConnectorStarted') &&
+                          !line.includes('background graphics initialization') &&
                           !line.includes('MATLAB did not appear to successfully set the search path') &&
                           !line.includes('Initializing Java preferences failed') &&
                           !line.includes('potentially serious problem') &&

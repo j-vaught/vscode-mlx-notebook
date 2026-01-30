@@ -2,7 +2,7 @@
   "name": "vscode-mlx-notebook",
   "displayName": "MATLAB Live Script Editor",
   "description": "Edit, execute, and save MATLAB Live Script (.mlx) files as notebooks",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "publisher": "j-vaught",
   "author": "J.C. Vaught",
   "license": "MIT",
