@@ -21,15 +21,21 @@ export async function parseMlx(content: Uint8Array): Promise<MlxCell[]> {
       const outXml = await outFile.async('string');
       const outputMap = parseOutputs(outXml);
 
-      // Attach outputs to code cells by region index
-      let codeIndex = 0;
+      // Each region corresponds to one code line in the original document.
+      // A code cell with N lines consumes N regions.
+      let regionIndex = 0;
       for (const cell of cells) {
         if (cell.kind === 'code') {
-          const outputs = outputMap[codeIndex];
-          if (outputs && outputs.length > 0) {
-            cell.outputs = outputs;
+          const lineCount = cell.content.split('\n').length;
+          const cellOutputs: typeof cell.outputs = [];
+          for (let i = 0; i < lineCount; i++) {
+            const outputs = outputMap[regionIndex + i];
+            if (outputs) cellOutputs.push(...outputs);
           }
-          codeIndex++;
+          if (cellOutputs.length > 0) {
+            cell.outputs = cellOutputs;
+          }
+          regionIndex += lineCount;
         }
       }
     } catch {

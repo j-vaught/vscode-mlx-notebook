@@ -9,11 +9,24 @@ interface OutputElement {
     rows?: string | number;
     columns?: string | number;
   };
-  lineNumbers?: string | number;
+  lineNumbers?: { element?: string | string[] };
+}
+
+interface OutputIndexes {
+  element?: string | string[];
+  '@_type'?: string;
 }
 
 interface RegionElement {
-  outputIndexes?: string;
+  outputIndexes?: OutputIndexes;
+}
+
+function extractIndexes(oi: OutputIndexes | undefined): number[] {
+  if (!oi) return [];
+  const el = oi.element;
+  if (el === undefined || el === null) return [];
+  if (Array.isArray(el)) return el.map(s => parseInt(String(s), 10)).filter(n => !isNaN(n));
+  return [parseInt(String(el), 10)].filter(n => !isNaN(n));
 }
 
 export function parseOutputs(xml: string): OutputMap {
@@ -27,23 +40,23 @@ export function parseOutputs(xml: string): OutputMap {
   const doc = parser.parse(xml);
   const map: OutputMap = {};
 
-  const outputArray = doc?.outputData?.outputArray?.element;
+  // Root can be embeddedOutputs or outputData
+  const root = doc?.embeddedOutputs || doc?.outputData;
+  if (!root) return map;
+
+  const outputArray = root?.outputArray?.element;
   if (!outputArray) return map;
 
   const elements: OutputElement[] = Array.isArray(outputArray) ? outputArray : [outputArray];
 
-  const regionArray = doc?.outputData?.regionArray?.element;
+  const regionArray = root?.regionArray?.element;
   const regions: RegionElement[] = regionArray
     ? (Array.isArray(regionArray) ? regionArray : [regionArray])
     : [];
 
-  // Map region index → output elements
   for (let regionIdx = 0; regionIdx < regions.length; regionIdx++) {
     const region = regions[regionIdx];
-    const indexStr = region.outputIndexes;
-    if (!indexStr && indexStr !== '0') continue;
-
-    const outputIdxs = String(indexStr).split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+    const outputIdxs = extractIndexes(region.outputIndexes);
 
     const outputs: MlxOutput[] = [];
     for (const oi of outputIdxs) {

@@ -8,7 +8,7 @@ interface WRun {
     'w:b'?: unknown;
     'w:u'?: unknown;
   };
-  'w:t'?: string | { '#text': string; '@_xml:space'?: string };
+  'w:t'?: string | { '#text'?: string; '__cdata'?: string; '@_xml:space'?: string };
 }
 
 interface WParagraph {
@@ -29,7 +29,10 @@ function getTextFromRun(run: WRun): string {
   const t = run['w:t'];
   if (t === undefined || t === null) return '';
   if (typeof t === 'string') return t;
-  if (typeof t === 'object' && '#text' in t) return String(t['#text']);
+  if (typeof t === 'object') {
+    if ('__cdata' in t && t.__cdata) return String(t.__cdata);
+    if ('#text' in t && t['#text']) return String(t['#text']);
+  }
   return String(t);
 }
 
@@ -95,6 +98,10 @@ export function parseDocument(xml: string): MlxCell[] {
   }
 
   for (const p of paragraphs) {
+    // Skip section-break-only paragraphs (w:sectPr with no content)
+    const pPr = p['w:pPr'] as Record<string, unknown> | undefined;
+    if (pPr?.['w:sectPr'] !== undefined && !pPr['w:pStyle'] && !p['w:r']) continue;
+
     const style = getStyle(p);
 
     if (style === 'code') {
