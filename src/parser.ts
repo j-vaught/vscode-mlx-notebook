@@ -3,7 +3,12 @@ import { parseDocument } from './documentParser';
 import { parseOutputs, formatOutputs } from './outputParser';
 import { MlxCell } from './types';
 
-export async function parseMlx(content: Uint8Array): Promise<MlxCell[]> {
+export interface ParseResult {
+  cells: MlxCell[];
+  zip: JSZip;
+}
+
+export async function parseMlx(content: Uint8Array): Promise<ParseResult> {
   const zip = await JSZip.loadAsync(content);
 
   const docFile = zip.file('matlab/document.xml');
@@ -43,5 +48,5 @@ export async function parseMlx(content: Uint8Array): Promise<MlxCell[]> {
     }
   }
 
-  return cells;
+  return { cells, zip };
 }

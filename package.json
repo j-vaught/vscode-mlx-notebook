@@ -1,8 +1,8 @@
 {
   "name": "vscode-mlx-notebook",
-  "displayName": "MATLAB Live Script Viewer",
-  "description": "Read-only notebook viewer for MATLAB Live Script (.mlx) files",
-  "version": "0.2.0",
+  "displayName": "MATLAB Live Script Editor",
+  "description": "Edit, execute, and save MATLAB Live Script (.mlx) files as notebooks",
+  "version": "0.3.0",
   "publisher": "j-vaught",
   "author": "J.C. Vaught",
   "license": "MIT",
@@ -13,8 +13,12 @@
   "engines": {
     "vscode": "^1.75.0"
   },
-  "categories": ["Notebooks"],
-  "activationEvents": ["onNotebook:mlx-notebook"],
+  "categories": [
+    "Notebooks"
+  ],
+  "activationEvents": [
+    "onNotebook:mlx-notebook"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
     "notebooks": [
@@ -22,7 +26,9 @@
         "type": "mlx-notebook",
         "displayName": "MATLAB Live Script",
         "selector": [
-          { "filenamePattern": "*.mlx" }
+          {
+            "filenamePattern": "*.mlx"
+          }
         ]
       }
     ],
@@ -31,9 +37,30 @@
         "id": "mlx-output-renderer",
         "displayName": "MLX Output Renderer",
         "entrypoint": "./dist/renderer.js",
-        "mimeTypes": ["application/mlx-output+json"]
+        "mimeTypes": [
+          "application/mlx-output+json"
+        ]
       }
-    ]
+    ],
+    "configuration": {
+      "title": "MATLAB Live Script Editor",
+      "properties": {
+        "mlx-notebook.executionBackend": {
+          "type": "string",
+          "enum": [
+            "cli",
+            "python-engine"
+          ],
+          "default": "cli",
+          "description": "MATLAB execution backend. 'cli' spawns matlab -batch per cell. 'python-engine' uses the MATLAB Engine for Python for persistent sessions."
+        },
+        "mlx-notebook.matlabPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the MATLAB executable. Leave empty to auto-detect."
+        }
+      }
+    }
   },
   "scripts": {
     "build": "node esbuild.js",
@@ -41,6 +68,7 @@
     "lint": "tsc --noEmit"
   },
   "devDependencies": {
+    "@types/node": "^25.1.0",
     "@types/vscode": "^1.75.0",
     "esbuild": "^0.20.0",
     "typescript": "^5.3.0"

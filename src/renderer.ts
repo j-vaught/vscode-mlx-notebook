@@ -8,6 +8,13 @@ interface MlxOutput {
   columns: number;
 }
 
+interface MlxOutputPayload {
+  outputs?: MlxOutput[];
+  figures?: Array<{ data: string }>;
+  text?: string;
+  source?: 'cached' | 'live';
+}
+
 const CSS = `
 .mlx-output-container {
   font-family: var(--vscode-editor-font-family, monospace);
@@ -17,7 +24,6 @@ const CSS = `
 
 .mlx-badge {
   display: inline-block;
-  background: #466A9F;
   color: #FFFFFF;
   font-size: 10px;
   font-weight: 700;
@@ -26,6 +32,14 @@ const CSS = `
   margin-bottom: 8px;
   border-radius: 0;
   text-transform: uppercase;
+}
+
+.mlx-badge-cached {
+  background: #466A9F;
+}
+
+.mlx-badge-live {
+  background: #65780B;
 }
 
 .mlx-output-item {
@@ -81,6 +95,21 @@ body.vscode-light .mlx-matrix-table td {
 body.vscode-dark .mlx-matrix-table td {
   border: 1px solid #5C5C5C;
 }
+
+/* Figure */
+.mlx-figure {
+  margin: 8px 0;
+}
+.mlx-figure img {
+  max-width: 100%;
+  border-radius: 0;
+}
+
+/* Text output */
+.mlx-text-output {
+  white-space: pre-wrap;
+  margin: 4px 0;
+}
 `;
 
 function escapeHtml(s: string): string {
@@ -109,10 +138,24 @@ function renderVariable(output: MlxOutput): string {
   return `<div class="mlx-output-item mlx-variable"><span class="mlx-var-name">${escapeHtml(output.name)}</span> = ${escapeHtml(output.value)}</div>`;
 }
 
+function renderFigure(base64Data: string): string {
+  return `<div class="mlx-output-item mlx-figure"><img src="data:image/png;base64,${base64Data}" /></div>`;
+}
+
+function renderText(text: string): string {
+  return `<div class="mlx-output-item mlx-text-output">${escapeHtml(text)}</div>`;
+}
+
 export const activate: ActivationFunction = (_context) => {
   return {
     renderOutputItem(outputItem, element) {
-      const outputs = outputItem.json() as MlxOutput[];
+      const payload = outputItem.json() as MlxOutputPayload;
+
+      // Handle legacy format (plain array of MlxOutput)
+      const outputs: MlxOutput[] = Array.isArray(payload) ? payload : (payload.outputs || []);
+      const figures = Array.isArray(payload) ? undefined : payload.figures;
+      const text = Array.isArray(payload) ? undefined : payload.text;
+      const source = Array.isArray(payload) ? 'cached' : (payload.source || 'cached');
 
       // Inject styles
       let style = element.querySelector('style.mlx-style');
@@ -127,13 +170,28 @@ export const activate: ActivationFunction = (_context) => {
       container.className = 'mlx-output-container';
 
       // Badge
-      container.innerHTML = `<span class="mlx-badge">Cached Output</span>`;
+      const badgeClass = source === 'live' ? 'mlx-badge-live' : 'mlx-badge-cached';
+      const badgeLabel = source === 'live' ? 'Live Output' : 'Cached Output';
+      container.innerHTML = `<span class="mlx-badge ${badgeClass}">${badgeLabel}</span>`;
 
+      // Render text output
+      if (text) {
+        container.innerHTML += renderText(text);
+      }
+
+      // Render structured outputs
       for (const output of outputs) {
         if (output.type === 'matrix' && output.rows > 1) {
           container.innerHTML += renderMatrix(output);
         } else {
           container.innerHTML += renderVariable(output);
+        }
+      }
+
+      // Render figures
+      if (figures) {
+        for (const fig of figures) {
+          container.innerHTML += renderFigure(fig.data);
         }
       }
 

@@ -15,3 +15,13 @@ export interface MlxOutput {
 export interface OutputMap {
   [codeRegionIndex: number]: MlxOutput[];
 }
+
+export interface MlxExecutionResult {
+  stdout: string;
+  stderr: string;
+  figures?: Array<{ data: string }>;
+}
+
+export interface MlxCellOutputMeta {
+  source: 'cached' | 'live';
+}
