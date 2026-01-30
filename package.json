@@ -2,7 +2,7 @@
   "name": "vscode-mlx-notebook",
   "displayName": "MATLAB Live Script Viewer",
   "description": "Read-only notebook viewer for MATLAB Live Script (.mlx) files",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "j-vaught",
   "author": "J.C. Vaught",
   "license": "MIT",
