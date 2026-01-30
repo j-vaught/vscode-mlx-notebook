@@ -1,5 +1,7 @@
-%% 7-DOF Full Car Suspension Model: Speed Bump Analysis
-% This script simulates a full car (7-DOF) suspension system traversing
+%% 7-DOF Full Car Suspension Model
+% # Speed Bump Analysis
+%
+% This notebook simulates a full car (7-DOF) suspension system traversing
 % a half-sine speed bump. The seven generalized coordinates are:
 %
 % * $z_s$ -- body heave (vertical CG displacement)
@@ -9,89 +11,97 @@
 %
 % We examine head-on and angled bump approaches at multiple speeds.
 
-%% Vehicle Parameters
-% Define sedan-class parameters and compute natural frequencies.
-
-% --- Body ---
+%% Body Parameters
 m_s   = 1400;       % sprung mass [kg]
 I_xx  = 500;        % roll inertia [kg*m^2]
 I_yy  = 2000;       % pitch inertia [kg*m^2]
 
-% --- Geometry ---
+fprintf('Sprung mass:   %d kg\n', m_s);
+fprintf('Roll inertia:  %d kg*m^2\n', I_xx);
+fprintf('Pitch inertia: %d kg*m^2\n', I_yy);
+
+%% Geometry
 l_f = 1.2;          % CG to front axle [m]
 l_r = 1.5;          % CG to rear axle [m]
 t   = 0.8;          % half-track width [m]
 L_wb = l_f + l_r;   % wheelbase [m]
 
-% --- Suspension stiffness & damping ---
+fprintf('Wheelbase:   %.2f m\n', L_wb);
+fprintf('Half-track:  %.2f m\n', t);
+fprintf('Front axle:  %.2f m from CG\n', l_f);
+fprintf('Rear axle:   %.2f m from CG\n', l_r);
+
+%% Suspension and Tire Parameters
 k_sf = 22000;       % front spring rate [N/m]
 k_sr = 22000;       % rear spring rate [N/m]
 c_sf = 1500;        % front damping [Ns/m]
 c_sr = 1500;        % rear damping [Ns/m]
 
-% Corner arrays: FL, FR, RL, RR
 k_s = [k_sf, k_sf, k_sr, k_sr];
 c_s = [c_sf, c_sf, c_sr, c_sr];
 
-% --- Unsprung masses ---
 m_w = [40, 40, 40, 40];   % wheel masses [kg]
-
-% --- Tire stiffness ---
 k_t = [200000, 200000, 200000, 200000];  % tire stiffness [N/m]
 
-% --- Signed geometry vectors ---
+fprintf('Suspension stiffness: %d / %d N/m (front/rear)\n', k_sf, k_sr);
+fprintf('Suspension damping:   %d / %d Ns/m (front/rear)\n', c_sf, c_sr);
+fprintf('Wheel mass:           %d kg each\n', m_w(1));
+fprintf('Tire stiffness:       %d N/m each\n', k_t(1));
+
+%% Geometry Vectors and Natural Frequencies
+% Signed distance vectors for each corner (FL, FR, RL, RR):
+
 a_vec = [l_f, l_f, -l_r, -l_r];   % longitudinal (positive = front)
 b_vec = [t, -t, t, -t];           % lateral (positive = left)
 
-% --- Natural frequencies ---
 f_heave = sqrt(sum(k_s) / m_s) / (2*pi);
 f_roll  = sqrt(sum(k_s .* b_vec.^2) / I_xx) / (2*pi);
 f_pitch = sqrt(sum(k_s .* a_vec.^2) / I_yy) / (2*pi);
 f_wheel = sqrt((k_s + k_t) ./ m_w) / (2*pi);
 
-fprintf('=== Vehicle Parameters ===\n');
-fprintf('Sprung mass: %.0f kg\n', m_s);
-fprintf('Wheelbase: %.2f m, Half-track: %.2f m\n', L_wb, t);
-fprintf('\n=== Natural Frequencies ===\n');
+fprintf('=== Natural Frequencies ===\n');
 fprintf('Heave:  %.2f Hz\n', f_heave);
 fprintf('Roll:   %.2f Hz\n', f_roll);
 fprintf('Pitch:  %.2f Hz\n', f_pitch);
 fprintf('Wheels: %.2f Hz (front), %.2f Hz (rear)\n', f_wheel(1), f_wheel(3));
 
-%% Model Description
-% The equations of motion in matrix form are $M \ddot{q} = F(q, \dot{q}, t)$ where:
+%% Equations of Motion
+% The equations of motion in matrix form are $M \ddot{q} = F(q, \dot{q}, t)$:
 %
-% *Heave:*
+% **Heave:**
 % $$m_s \ddot{z}_s = \sum_{i=1}^{4} F_{s,i}$$
 %
-% *Roll:*
+% **Roll:**
 % $$I_{xx} \ddot{\phi} = \sum_{i=1}^{4} b_i \, F_{s,i}$$
 %
-% *Pitch:*
+% **Pitch:**
 % $$I_{yy} \ddot{\theta} = \sum_{i=1}^{4} a_i \, F_{s,i}$$
 %
-% *Wheel i:*
+% **Wheel $i$:**
 % $$m_{w,i} \ddot{z}_{w,i} = -F_{s,i} + F_{t,i}$$
-%
-% where the suspension and tire forces are:
+
+%% Force Definitions
+% The suspension and tire forces at each corner $i$ are:
 %
 % $$F_{s,i} = k_{s,i}(z_{w,i} - z_{c,i}) + c_{s,i}(\dot{z}_{w,i} - \dot{z}_{c,i})$$
 %
 % $$F_{t,i} = k_{t,i}(z_{r,i} - z_{w,i})$$
+%
+% where the body corner position is:
+%
+% $$z_{c,i} = z_s + a_i \theta + b_i \phi$$
 
-%% State-Space Setup
-% Define the 14-state vector and ODE function handle.
-% States: x = [z_s, phi, theta, zw1, zw2, zw3, zw4, ...
-%              z_s_dot, phi_dot, theta_dot, zw1_dot, zw2_dot, zw3_dot, zw4_dot]
+%% State Vector Definition
+% The 14-state vector for numerical integration:
 
 n_states = 14;
 fprintf('State vector dimension: %d\n', n_states);
-fprintf('States 1-3:  body heave, roll, pitch\n');
-fprintf('States 4-7:  wheel vertical displacements (FL, FR, RL, RR)\n');
-fprintf('States 8-10: body heave rate, roll rate, pitch rate\n');
-fprintf('States 11-14: wheel vertical velocities (FL, FR, RL, RR)\n');
+fprintf('States 1-3:   body heave, roll, pitch\n');
+fprintf('States 4-7:   wheel displacements (FL, FR, RL, RR)\n');
+fprintf('States 8-10:  body rates (heave, roll, pitch)\n');
+fprintf('States 11-14: wheel velocities (FL, FR, RL, RR)\n');
 
-% Pack parameters into a struct for the ODE function
+%% Parameter Struct
 params.m_s   = m_s;
 params.I_xx  = I_xx;
 params.I_yy  = I_yy;
@@ -102,19 +112,25 @@ params.k_t   = k_t;
 params.a_vec = a_vec;
 params.b_vec = b_vec;
 
-%% Road Profile: Half-Sine Bump
+fprintf('Parameter struct packed: %d fields\n', length(fieldnames(params)));
+
+%% Road Profile Definition
 % The bump is a half-sine pulse:
 %
 % $$z_r(x) = h \sin\!\left(\frac{\pi x}{L_b}\right), \quad 0 \le x \le L_b$$
 %
 % with height $h = 0.08$ m and length $L_b = 0.5$ m.
 
+%% Bump Parameters
 h_bump = 0.08;     % bump height [m]
 L_bump = 0.5;      % bump length [m]
 
 bump_profile = @(x) h_bump * sin(pi * x / L_bump) .* (x >= 0 & x <= L_bump);
 
-%% Road Profile Visualization
+fprintf('Bump height: %.0f mm\n', h_bump*1000);
+fprintf('Bump length: %.1f m\n', L_bump);
+
+%% Bump Visualization
 x_plot = linspace(-0.2, 1.0, 500);
 z_plot = bump_profile(x_plot);
 
@@ -128,38 +144,11 @@ grid on;
 xlim([-0.2, 1.0]);
 ylim([-5, 100]);
 
-%% Simulation 1: Head-On Approach at 40 km/h
+%% Head-On Approach at 40 km/h
 % Front wheels hit the bump simultaneously, rear wheels follow after
 % a delay of $L_{wb}/V$.
 
-V1 = 40 / 3.6;    % speed [m/s]
-t0 = 0.1;         % initial offset so bump doesn't start at t=0
-
-% Road input function for head-on approach
-road_headon = @(tt) road_input_headon(tt, V1, t0, L_wb, bump_profile);
-
-% Time span
-T_end = 2.0;
-tspan = [0, T_end];
-x0 = zeros(n_states, 1);
-
-% Solve ODE
-opts = odeset('RelTol', 1e-6, 'AbsTol', 1e-8, 'MaxStep', 1e-3);
-[t1, x1] = ode45(@(tt, xx) car7dof_ode(tt, xx, params, road_headon), tspan, x0, opts);
-
-% Extract body states
-zs1    = x1(:,1) * 1000;   % heave [mm]
-phi1   = x1(:,2) * 180/pi; % roll [deg]
-theta1 = x1(:,3) * 180/pi; % pitch [deg]
-
-fprintf('\n=== Head-On at %.0f km/h ===\n', 40);
-fprintf('Peak heave:  %+.2f mm\n', max(abs(zs1)) * sign(zs1(abs(zs1)==max(abs(zs1)))));
-fprintf('Peak roll:   %+.4f deg\n', max(abs(phi1)) * sign(phi1(abs(phi1)==max(abs(phi1)))));
-fprintf('Peak pitch:  %+.4f deg\n', max(abs(theta1)));
-
-%% Body Motion Plots
-% 2x2 subplot showing heave, pitch, roll, and combined body response.
-
+%% Color Definitions
 col_garnet   = [0.451, 0, 0.039];
 col_rose     = [0.800, 0.180, 0.251];
 col_atlantic = [0.275, 0.416, 0.624];
@@ -167,26 +156,55 @@ col_congaree = [0.122, 0.255, 0.302];
 col_horseshoe = [0.396, 0.471, 0.043];
 col_black90  = [0.212, 0.212, 0.212];
 
+%% Simulation Setup
+V1 = 40 / 3.6;    % speed [m/s]
+t0 = 0.1;         % initial offset so bump doesn't start at t=0
+
+road_headon = @(tt) road_input_headon(tt, V1, t0, L_wb, bump_profile);
+
+T_end = 2.0;
+tspan = [0, T_end];
+x0 = zeros(n_states, 1);
+opts = odeset('RelTol', 1e-6, 'AbsTol', 1e-8, 'MaxStep', 1e-3);
+
+fprintf('Speed: %.1f m/s (40 km/h)\n', V1);
+fprintf('Bump encounter delay (front to rear): %.3f s\n', L_wb/V1);
+
+%% Run Head-On Simulation
+[t1, x1] = ode45(@(tt, xx) car7dof_ode(tt, xx, params, road_headon), tspan, x0, opts);
+
+zs1    = x1(:,1) * 1000;   % heave [mm]
+phi1   = x1(:,2) * 180/pi; % roll [deg]
+theta1 = x1(:,3) * 180/pi; % pitch [deg]
+
+fprintf('Simulation complete: %d time steps\n', length(t1));
+fprintf('Peak heave:  %+.2f mm\n', max(abs(zs1)) * sign(zs1(abs(zs1)==max(abs(zs1)))));
+fprintf('Peak roll:   %+.4f deg\n', max(abs(phi1)) * sign(phi1(abs(phi1)==max(abs(phi1)))));
+fprintf('Peak pitch:  %+.4f deg\n', max(abs(theta1)));
+
+%% Body Heave Response
 figure;
-subplot(2,2,1);
 plot(t1, zs1, 'Color', col_garnet, 'LineWidth', 1.5);
 xlabel('Time [s]'); ylabel('Heave [mm]');
-title('Body Heave (z_s)');
+title('Body Heave (z_s) -- Head-On, 40 km/h');
 set(gca, 'Box', 'on'); grid on;
 
-subplot(2,2,2);
+%% Body Pitch Response
+figure;
 plot(t1, theta1, 'Color', col_atlantic, 'LineWidth', 1.5);
 xlabel('Time [s]'); ylabel('Pitch [deg]');
-title('Body Pitch (\theta)');
+title('Body Pitch (\theta) -- Head-On, 40 km/h');
 set(gca, 'Box', 'on'); grid on;
 
-subplot(2,2,3);
+%% Body Roll Response
+figure;
 plot(t1, phi1, 'Color', col_rose, 'LineWidth', 1.5);
 xlabel('Time [s]'); ylabel('Roll [deg]');
-title('Body Roll (\phi)');
+title('Body Roll (\phi) -- Head-On, 40 km/h');
 set(gca, 'Box', 'on'); grid on;
 
-subplot(2,2,4);
+%% Combined Body Motion
+figure;
 plot(t1, zs1, 'Color', col_garnet, 'LineWidth', 1.5); hold on;
 plot(t1, theta1 * 10, 'Color', col_atlantic, 'LineWidth', 1.5);
 plot(t1, phi1 * 100, 'Color', col_rose, 'LineWidth', 1.5);
@@ -196,15 +214,15 @@ legend('Heave [mm]', 'Pitch [deg x10]', 'Roll [deg x100]', 'Location', 'best');
 set(gca, 'Box', 'on'); grid on;
 hold off;
 
-%% Wheel Displacement Plot
+%% Wheel Displacements
 % All four wheel displacements overlaid with the road profile at each wheel.
 
+%% Wheel Displacement Plot
 zw1 = x1(:,4) * 1000;
 zw2 = x1(:,5) * 1000;
 zw3 = x1(:,6) * 1000;
 zw4 = x1(:,7) * 1000;
 
-% Road profiles at each wheel
 zr1 = bump_profile(V1 * (t1 - t0)) * 1000;
 zr3 = bump_profile(V1 * (t1 - t0 - L_wb/V1)) * 1000;
 
@@ -222,10 +240,9 @@ legend('FL (z_{w1})', 'FR (z_{w2})', 'RL (z_{w3})', 'RR (z_{w4})', ...
 set(gca, 'Box', 'on'); grid on;
 hold off;
 
-%% Suspension Forces
-% Compute and plot the suspension force at each corner.
+%% Suspension Force Computation
+% Compute the suspension force at each corner from the simulation results.
 
-% Recompute corner positions and forces
 zs_vec    = x1(:,1);
 phi_vec   = x1(:,2);
 theta_vec = x1(:,3);
@@ -245,6 +262,12 @@ end
 corner_names = {'FL', 'FR', 'RL', 'RR'};
 corner_colors = {col_garnet, col_rose, col_atlantic, col_congaree};
 
+fprintf('=== Peak Suspension Forces (Head-On, 40 km/h) ===\n');
+for j = 1:4
+    fprintf('%s: %+.1f N (max), %+.1f N (min)\n', corner_names{j}, max(Fs(:,j)), min(Fs(:,j)));
+end
+
+%% Suspension Force Plots
 figure;
 for j = 1:4
     subplot(2,2,j);
@@ -254,14 +277,11 @@ for j = 1:4
     set(gca, 'Box', 'on'); grid on;
 end
 
-fprintf('\n=== Peak Suspension Forces (Head-On, 40 km/h) ===\n');
-for j = 1:4
-    fprintf('%s: %.1f N (max), %.1f N (min)\n', corner_names{j}, max(Fs(:,j)), min(Fs(:,j)));
-end
-
 %% Body Corner Positions
-% Vertical positions of the four corners of the car body.
+% The vertical position at each corner of the car body combines heave,
+% pitch, and roll contributions: $z_{c,i} = z_s + a_i \theta + b_i \phi$.
 
+%% Corner Position Plot
 zc_all = zeros(length(t1), 4);
 for j = 1:4
     zc_all(:,j) = (zs_vec + a_vec(j)*theta_vec + b_vec(j)*phi_vec) * 1000;
@@ -288,7 +308,6 @@ hold off;
 speeds_kmh = [20, 40, 60];
 n_speeds = length(speeds_kmh);
 
-% Storage
 results = struct();
 for si = 1:n_speeds
     V_now = speeds_kmh(si) / 3.6;
@@ -300,6 +319,9 @@ for si = 1:n_speeds
     results(si).label = sprintf('%d km/h', speeds_kmh(si));
 end
 
+fprintf('All %d speed simulations complete.\n', n_speeds);
+
+%% Speed Comparison Table
 fprintf('\n=== Speed Comparison (Head-On) ===\n');
 fprintf('%-10s %12s %12s %12s\n', 'Speed', 'Peak Heave', 'Peak Roll', 'Peak Pitch');
 fprintf('%-10s %12s %12s %12s\n', '', '[mm]', '[deg]', '[deg]');
@@ -311,13 +333,10 @@ for si = 1:n_speeds
     fprintf('%-10s %12.3f %12.5f %12.4f\n', results(si).label, pk_h, pk_r, pk_p);
 end
 
-%% Speed Comparison Plots
-% 3x1 subplot showing heave, pitch, and roll for each speed.
-
+%% Heave vs Speed
 speed_colors = {col_atlantic, col_garnet, col_horseshoe};
 
 figure;
-subplot(3,1,1);
 for si = 1:n_speeds
     plot(results(si).t, results(si).x(:,1)*1000, ...
         'Color', speed_colors{si}, 'LineWidth', 1.5); hold on;
@@ -327,7 +346,8 @@ title('Body Heave vs Speed');
 legend(results(1).label, results(2).label, results(3).label, 'Location', 'best');
 set(gca, 'Box', 'on'); grid on; hold off;
 
-subplot(3,1,2);
+%% Pitch vs Speed
+figure;
 for si = 1:n_speeds
     plot(results(si).t, results(si).x(:,3)*180/pi, ...
         'Color', speed_colors{si}, 'LineWidth', 1.5); hold on;
@@ -337,7 +357,8 @@ title('Body Pitch vs Speed');
 legend(results(1).label, results(2).label, results(3).label, 'Location', 'best');
 set(gca, 'Box', 'on'); grid on; hold off;
 
-subplot(3,1,3);
+%% Roll vs Speed
+figure;
 for si = 1:n_speeds
     plot(results(si).t, results(si).x(:,2)*180/pi, ...
         'Color', speed_colors{si}, 'LineWidth', 1.5); hold on;
@@ -357,20 +378,27 @@ set(gca, 'Box', 'on'); grid on; hold off;
 % This introduces asymmetric excitation that couples roll, pitch, and
 % heave -- unlike the symmetric head-on case where roll remains zero.
 
-%% Angled Approach Simulation (30 deg, 40 km/h)
+%% Angled Simulation Setup
 alpha_deg = 30;
 alpha_rad = alpha_deg * pi / 180;
 V2 = 40 / 3.6;
 
 road_angled = @(tt) road_input_angled(tt, V2, t0, alpha_rad, a_vec, b_vec, bump_profile);
 
+fprintf('Approach angle: %d degrees\n', alpha_deg);
+fprintf('Speed: 40 km/h\n');
+
+%% Run Angled Simulation
 [t2, x2] = ode45(@(tt, xx) car7dof_ode(tt, xx, params, road_angled), tspan, x0, opts);
 
 zs2    = x2(:,1) * 1000;
 phi2   = x2(:,2) * 180/pi;
 theta2 = x2(:,3) * 180/pi;
 
-fprintf('\n=== Angled Approach (30 deg, 40 km/h) ===\n');
+fprintf('Simulation complete: %d time steps\n', length(t2));
+
+%% Angled Approach Results
+fprintf('=== Angled Approach (30 deg, 40 km/h) ===\n');
 fprintf('Peak heave: %.3f mm\n', max(abs(zs2)));
 fprintf('Peak roll:  %.5f deg\n', max(abs(phi2)));
 fprintf('Peak pitch: %.4f deg\n', max(abs(theta2)));
@@ -379,11 +407,8 @@ fprintf('Head-on peak roll: %.5f deg\n', max(abs(phi1)));
 fprintf('Angled  peak roll: %.5f deg\n', max(abs(phi2)));
 fprintf('Roll amplification: %.1fx\n', max(abs(phi2)) / max(max(abs(phi1)), 1e-10));
 
-%% Angled vs Head-On Comparison Plots
-% 2x3 subplot comparing body and wheel responses.
-
+%% Heave: Head-On vs Angled
 figure;
-subplot(2,3,1);
 plot(t1, zs1, 'Color', col_garnet, 'LineWidth', 1.5); hold on;
 plot(t2, zs2, '--', 'Color', col_atlantic, 'LineWidth', 1.5);
 xlabel('Time [s]'); ylabel('Heave [mm]');
@@ -391,7 +416,8 @@ title('Heave Comparison');
 legend('Head-on', 'Angled 30\circ', 'Location', 'best');
 set(gca, 'Box', 'on'); grid on; hold off;
 
-subplot(2,3,2);
+%% Roll: Head-On vs Angled
+figure;
 plot(t1, phi1, 'Color', col_garnet, 'LineWidth', 1.5); hold on;
 plot(t2, phi2, '--', 'Color', col_atlantic, 'LineWidth', 1.5);
 xlabel('Time [s]'); ylabel('Roll [deg]');
@@ -399,7 +425,8 @@ title('Roll Comparison');
 legend('Head-on', 'Angled 30\circ', 'Location', 'best');
 set(gca, 'Box', 'on'); grid on; hold off;
 
-subplot(2,3,3);
+%% Pitch: Head-On vs Angled
+figure;
 plot(t1, theta1, 'Color', col_garnet, 'LineWidth', 1.5); hold on;
 plot(t2, theta2, '--', 'Color', col_atlantic, 'LineWidth', 1.5);
 xlabel('Time [s]'); ylabel('Pitch [deg]');
@@ -407,33 +434,37 @@ title('Pitch Comparison');
 legend('Head-on', 'Angled 30\circ', 'Location', 'best');
 set(gca, 'Box', 'on'); grid on; hold off;
 
-subplot(2,3,4);
+%% Front Wheel Response (Angled)
+figure;
 plot(t2, x2(:,4)*1000, 'Color', col_garnet, 'LineWidth', 1.5); hold on;
 plot(t2, x2(:,5)*1000, 'Color', col_rose, 'LineWidth', 1.5);
 xlabel('Time [s]'); ylabel('Displacement [mm]');
-title('Front Wheels (Angled)');
+title('Front Wheels -- Angled 30\circ');
 legend('FL', 'FR', 'Location', 'best');
 set(gca, 'Box', 'on'); grid on; hold off;
 
-subplot(2,3,5);
+%% Rear Wheel Response (Angled)
+figure;
 plot(t2, x2(:,6)*1000, 'Color', col_atlantic, 'LineWidth', 1.5); hold on;
 plot(t2, x2(:,7)*1000, 'Color', col_congaree, 'LineWidth', 1.5);
 xlabel('Time [s]'); ylabel('Displacement [mm]');
-title('Rear Wheels (Angled)');
+title('Rear Wheels -- Angled 30\circ');
 legend('RL', 'RR', 'Location', 'best');
 set(gca, 'Box', 'on'); grid on; hold off;
 
-subplot(2,3,6);
+%% Body Corners (Angled)
 zc_angled = zeros(length(t2), 4);
 for j = 1:4
     zc_angled(:,j) = (x2(:,1) + a_vec(j)*x2(:,3) + b_vec(j)*x2(:,2)) * 1000;
 end
+
+figure;
 plot(t2, zc_angled(:,1), 'Color', col_garnet, 'LineWidth', 1.5); hold on;
 plot(t2, zc_angled(:,2), 'Color', col_rose, 'LineWidth', 1.5);
 plot(t2, zc_angled(:,3), 'Color', col_atlantic, 'LineWidth', 1.5);
 plot(t2, zc_angled(:,4), 'Color', col_congaree, 'LineWidth', 1.5);
 xlabel('Time [s]'); ylabel('Position [mm]');
-title('Body Corners (Angled)');
+title('Body Corner Positions -- Angled 30\circ');
 legend('FL', 'FR', 'RL', 'RR', 'Location', 'best');
 set(gca, 'Box', 'on'); grid on; hold off;
 
@@ -441,7 +472,7 @@ set(gca, 'Box', 'on'); grid on; hold off;
 % Compute FFT-based power spectral density of the body heave, roll,
 % and pitch responses from the 40 km/h head-on simulation.
 
-% Resample to uniform time step
+%% FFT Computation
 dt_uni = 1e-3;
 t_uni = (0:dt_uni:T_end)';
 zs_uni    = interp1(t1, x1(:,1), t_uni);
@@ -452,44 +483,47 @@ N_fft = length(t_uni);
 f_axis = (0:N_fft-1) / (N_fft * dt_uni);
 f_half = f_axis(1:floor(N_fft/2)+1);
 
-ZS_fft    = abs(fft(zs_uni)).^2 / N_fft;
-PHI_fft   = abs(fft(phi_uni)).^2 / N_fft;
-THETA_fft = abs(fft(theta_uni)).^2 / N_fft;
+ZS_psd    = abs(fft(zs_uni)).^2 / N_fft;
+PHI_psd   = abs(fft(phi_uni)).^2 / N_fft;
+THETA_psd = abs(fft(theta_uni)).^2 / N_fft;
 
-ZS_psd    = ZS_fft(1:floor(N_fft/2)+1);
-PHI_psd   = PHI_fft(1:floor(N_fft/2)+1);
-THETA_psd = THETA_fft(1:floor(N_fft/2)+1);
+ZS_psd    = ZS_psd(1:floor(N_fft/2)+1);
+PHI_psd   = PHI_psd(1:floor(N_fft/2)+1);
+THETA_psd = THETA_psd(1:floor(N_fft/2)+1);
 
+fprintf('FFT computed: %d frequency bins\n', length(f_half));
+
+%% Heave PSD
 figure;
-subplot(3,1,1);
 semilogy(f_half, ZS_psd, 'Color', col_garnet, 'LineWidth', 1.2);
 xlabel('Frequency [Hz]'); ylabel('PSD [m^2/Hz]');
-title('Heave PSD');
+title('Heave Power Spectral Density');
 xlim([0, 30]); set(gca, 'Box', 'on'); grid on;
 
-subplot(3,1,2);
+%% Roll PSD
+figure;
 semilogy(f_half, PHI_psd, 'Color', col_rose, 'LineWidth', 1.2);
 xlabel('Frequency [Hz]'); ylabel('PSD [rad^2/Hz]');
-title('Roll PSD');
+title('Roll Power Spectral Density');
 xlim([0, 30]); set(gca, 'Box', 'on'); grid on;
 
-subplot(3,1,3);
+%% Pitch PSD
+figure;
 semilogy(f_half, THETA_psd, 'Color', col_atlantic, 'LineWidth', 1.2);
 xlabel('Frequency [Hz]'); ylabel('PSD [rad^2/Hz]');
-title('Pitch PSD');
+title('Pitch Power Spectral Density');
 xlim([0, 30]); set(gca, 'Box', 'on'); grid on;
 
 %% Summary
-% *Key Observations:*
+% **Key Observations:**
 %
-% # The head-on bump produces no roll motion due to symmetric excitation
-%   of left and right wheels simultaneously.
-% # Higher approach speed increases peak heave and pitch due to the more
-%   impulsive nature of the bump input.
-% # The angled approach at 30 degrees introduces significant roll coupling,
-%   as left and right wheels encounter the bump at different times.
-% # The frequency analysis shows dominant energy near the body natural
-%   frequencies (1-2 Hz range) and the wheel hop frequencies (~11 Hz).
-% # Suspension forces remain well within typical design limits for all
-%   scenarios tested.
-
+% 1. The head-on bump produces no roll motion due to symmetric excitation
+%    of left and right wheels simultaneously.
+% 2. Higher approach speed increases peak heave and pitch due to the more
+%    impulsive nature of the bump input.
+% 3. The angled approach at 30 degrees introduces significant roll coupling,
+%    as left and right wheels encounter the bump at different times.
+% 4. The frequency analysis shows dominant energy near the body natural
+%    frequencies (1-2 Hz range) and the wheel hop frequencies (~11 Hz).
+% 5. Suspension forces remain well within typical design limits for all
+%    scenarios tested.
