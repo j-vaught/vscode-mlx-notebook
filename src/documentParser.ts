@@ -30,8 +30,8 @@ function getTextFromRun(run: WRun): string {
   if (t === undefined || t === null) return '';
   if (typeof t === 'string') return t;
   if (typeof t === 'object') {
-    if ('__cdata' in t && t.__cdata) return String(t.__cdata);
-    if ('#text' in t && t['#text']) return String(t['#text']);
+    if ('__cdata' in t && t.__cdata !== undefined) return String(t.__cdata);
+    if ('#text' in t && t['#text'] !== undefined) return String(t['#text']);
   }
   return String(t);
 }
