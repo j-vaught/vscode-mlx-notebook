@@ -46,6 +46,11 @@ export class CliBackend implements MatlabEngine {
     try {
       // Build wrapper script
       const wrapper = `
+% Suppress startup warnings
+warning('off','all');
+try restoredefaultpath; end
+warning('on','all');
+
 % Load workspace if exists
 if isfile('${this.workspacePath.replace(/\\/g, '\\\\')}')
     load('${this.workspacePath.replace(/\\/g, '\\\\')}');
@@ -54,8 +59,14 @@ end
 % Disable figure display
 set(0, 'DefaultFigureVisible', 'off');
 
+% Marker so we can strip startup noise
+fprintf('__MLX_OUTPUT_START__\\n');
+
 % User code
 ${code}
+
+% End marker
+fprintf('\\n__MLX_OUTPUT_END__\\n');
 
 % Capture figures
 figs = findall(0, 'Type', 'figure');
@@ -72,7 +83,31 @@ save('${this.workspacePath.replace(/\\/g, '\\\\')}');
       fs.writeFileSync(scriptPath, wrapper, 'utf8');
 
       // Execute MATLAB script
-      const result = await this.spawnMatlab(scriptPath);
+      const rawResult = await this.spawnMatlab(scriptPath);
+
+      // Strip startup noise — extract only content between markers
+      const result = { stdout: rawResult.stdout, stderr: rawResult.stderr };
+      const startMarker = '__MLX_OUTPUT_START__';
+      const endMarker = '__MLX_OUTPUT_END__';
+      const startIdx = result.stdout.indexOf(startMarker);
+      const endIdx = result.stdout.indexOf(endMarker);
+      if (startIdx !== -1 && endIdx !== -1) {
+        result.stdout = result.stdout.substring(startIdx + startMarker.length + 1, endIdx).trimEnd();
+      } else if (startIdx !== -1) {
+        result.stdout = result.stdout.substring(startIdx + startMarker.length + 1).trimEnd();
+      }
+
+      // Filter startup warnings from stderr
+      result.stderr = result.stderr
+        .split('\n')
+        .filter(line => !line.includes('pathdef.m') &&
+                        !line.includes('restoredefaultpath') &&
+                        !line.includes('initdesktoputils') &&
+                        !line.includes('MATLAB did not appear to successfully set the search path') &&
+                        !line.includes('Initializing Java preferences failed') &&
+                        !line.includes('potentially serious problem'))
+        .join('\n')
+        .trim();
 
       // Read figure files
       const figures: Array<{ data: string }> = [];
