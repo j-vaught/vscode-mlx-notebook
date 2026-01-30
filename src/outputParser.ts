@@ -1,5 +1,5 @@
 import { XMLParser } from 'fast-xml-parser';
-import { MlxOutput, OutputMap } from './types';
+import { MlxOutput, MlxFigure, MlxRegionOutputs, OutputMap } from './types';
 
 interface OutputElement {
   type?: string;
@@ -9,6 +9,8 @@ interface OutputElement {
     rows?: string | number;
     columns?: string | number;
   };
+  figureUri?: string;
+  text?: string;
   lineNumbers?: { element?: string | string[] };
 }
 
@@ -40,7 +42,6 @@ export function parseOutputs(xml: string): OutputMap {
   const doc = parser.parse(xml);
   const map: OutputMap = {};
 
-  // Root can be embeddedOutputs or outputData
   const root = doc?.embeddedOutputs || doc?.outputData;
   if (!root) return map;
 
@@ -58,23 +59,33 @@ export function parseOutputs(xml: string): OutputMap {
     const region = regions[regionIdx];
     const outputIdxs = extractIndexes(region.outputIndexes);
 
-    const outputs: MlxOutput[] = [];
+    const variables: MlxOutput[] = [];
+    const figures: MlxFigure[] = [];
+    const text: string[] = [];
+
     for (const oi of outputIdxs) {
       if (oi < 0 || oi >= elements.length) continue;
       const el = elements[oi];
-      const od = el.outputData;
-      if (!od) continue;
-      outputs.push({
-        type: el.type || 'variable',
-        name: od.name || '',
-        value: String(od.value ?? ''),
-        rows: Number(od.rows) || 0,
-        columns: Number(od.columns) || 0,
-      });
+      const elType = el.type || 'variable';
+
+      if (elType === 'figure' && el.figureUri) {
+        figures.push({ data: el.figureUri });
+      } else if (elType === 'text' && el.text) {
+        text.push(String(el.text));
+      } else if (el.outputData) {
+        const od = el.outputData;
+        variables.push({
+          type: elType,
+          name: od.name || '',
+          value: String(od.value ?? ''),
+          rows: Number(od.rows) || 0,
+          columns: Number(od.columns) || 0,
+        });
+      }
     }
 
-    if (outputs.length > 0) {
-      map[regionIdx] = outputs;
+    if (variables.length > 0 || figures.length > 0 || text.length > 0) {
+      map[regionIdx] = { variables, figures, text };
     }
   }
 

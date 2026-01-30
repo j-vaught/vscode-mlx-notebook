@@ -1,6 +1,6 @@
 import JSZip from 'jszip';
 import { parseDocument } from './documentParser';
-import { parseOutputs, formatOutputs } from './outputParser';
+import { parseOutputs } from './outputParser';
 import { MlxCell } from './types';
 
 export interface ParseResult {
@@ -33,13 +33,22 @@ export async function parseMlx(content: Uint8Array): Promise<ParseResult> {
         if (cell.kind === 'code') {
           const lineCount = cell.content.split('\n').length;
           const cellOutputs: typeof cell.outputs = [];
+          const cellFigures: typeof cell.figures = [];
+          const cellText: string[] = [];
+
           for (let i = 0; i < lineCount; i++) {
-            const outputs = outputMap[regionIndex + i];
-            if (outputs) cellOutputs.push(...outputs);
+            const region = outputMap[regionIndex + i];
+            if (region) {
+              if (region.variables.length > 0) cellOutputs.push(...region.variables);
+              if (region.figures.length > 0) cellFigures.push(...region.figures);
+              if (region.text.length > 0) cellText.push(...region.text);
+            }
           }
-          if (cellOutputs.length > 0) {
-            cell.outputs = cellOutputs;
-          }
+
+          if (cellOutputs.length > 0) cell.outputs = cellOutputs;
+          if (cellFigures.length > 0) cell.figures = cellFigures;
+          if (cellText.length > 0) cell.textOutput = cellText.join('\n');
+
           regionIndex += lineCount;
         }
       }

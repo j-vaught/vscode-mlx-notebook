@@ -19,7 +19,9 @@ const CSS = `
 .mlx-output-container {
   font-family: var(--vscode-editor-font-family, monospace);
   font-size: var(--vscode-editor-font-size, 13px);
-  padding: 8px;
+  padding: 12px;
+  border: 1px solid var(--vscode-panel-border, #C7C7C7);
+  background: var(--vscode-editor-background);
 }
 
 .mlx-badge {
@@ -29,21 +31,32 @@ const CSS = `
   font-weight: 700;
   letter-spacing: 0.5px;
   padding: 2px 8px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   border-radius: 0;
   text-transform: uppercase;
 }
 
 .mlx-badge-cached {
-  background: #466A9F;
+  background: #676156;
 }
 
 .mlx-badge-live {
   background: #65780B;
 }
 
+.mlx-badge-stale {
+  background: #A49137;
+}
+
 .mlx-output-item {
   margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--vscode-panel-border, #ECECEC);
+}
+.mlx-output-item:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
 }
 
 /* Variable styling */
@@ -62,7 +75,7 @@ body.vscode-dark .mlx-var-name {
 
 /* Matrix header */
 .mlx-matrix-header {
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   font-weight: 600;
 }
 body.vscode-light .mlx-matrix-header {
@@ -84,8 +97,14 @@ body.vscode-dark .mlx-matrix-header {
   font-family: var(--vscode-editor-font-family, monospace);
   font-size: var(--vscode-editor-font-size, 13px);
 }
+body.vscode-light .mlx-matrix-table {
+  border: 1px solid #C7C7C7;
+}
+body.vscode-dark .mlx-matrix-table {
+  border: 1px solid #5C5C5C;
+}
 .mlx-matrix-table td {
-  padding: 2px 10px;
+  padding: 3px 12px;
   text-align: right;
   border-radius: 0;
 }
@@ -99,16 +118,58 @@ body.vscode-dark .mlx-matrix-table td {
 /* Figure */
 .mlx-figure {
   margin: 8px 0;
+  border: 1px solid var(--vscode-panel-border, #C7C7C7);
+  display: inline-block;
 }
 .mlx-figure img {
   max-width: 100%;
-  border-radius: 0;
+  display: block;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.mlx-figure img:hover {
+  opacity: 0.85;
+}
+
+/* Figure zoom overlay */
+.mlx-figure-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  cursor: zoom-out;
+}
+.mlx-figure-overlay img {
+  max-width: 95%;
+  max-height: 95%;
+  border: 2px solid #FFFFFF;
 }
 
 /* Text output */
 .mlx-text-output {
   white-space: pre-wrap;
   margin: 4px 0;
+  padding: 8px;
+  background: var(--vscode-textBlockQuote-background, #F5F5F5);
+  border-left: 3px solid #676156;
+  font-family: var(--vscode-editor-font-family, monospace);
+}
+
+/* Error output */
+.mlx-error-output {
+  white-space: pre-wrap;
+  margin: 4px 0;
+  padding: 8px;
+  background: var(--vscode-inputValidation-errorBackground, #5a1d1d);
+  border-left: 3px solid #73000A;
+  color: #CC2E40;
+  font-family: var(--vscode-editor-font-family, monospace);
 }
 `;
 
@@ -138,8 +199,12 @@ function renderVariable(output: MlxOutput): string {
   return `<div class="mlx-output-item mlx-variable"><span class="mlx-var-name">${escapeHtml(output.name)}</span> = ${escapeHtml(output.value)}</div>`;
 }
 
-function renderFigure(base64Data: string): string {
-  return `<div class="mlx-output-item mlx-figure"><img src="data:image/png;base64,${base64Data}" /></div>`;
+function renderFigure(base64Data: string, index: number): string {
+  let src = base64Data;
+  if (!src.startsWith('data:')) {
+    src = `data:image/png;base64,${src}`;
+  }
+  return `<div class="mlx-output-item mlx-figure"><img src="${src}" data-fig-idx="${index}" title="Click to zoom" /></div>`;
 }
 
 function renderText(text: string): string {
@@ -188,14 +253,28 @@ export const activate: ActivationFunction = (_context) => {
         }
       }
 
-      // Render figures
+      // Render figures with zoom-on-click
       if (figures) {
-        for (const fig of figures) {
-          container.innerHTML += renderFigure(fig.data);
+        for (let i = 0; i < figures.length; i++) {
+          container.innerHTML += renderFigure(figures[i].data, i);
         }
       }
 
       element.appendChild(container);
+
+      // Attach zoom-on-click handlers to figures
+      const figImages = container.querySelectorAll('.mlx-figure img') as NodeListOf<HTMLImageElement>;
+      for (const img of figImages) {
+        img.addEventListener('click', () => {
+          const overlay = document.createElement('div');
+          overlay.className = 'mlx-figure-overlay';
+          const zoomed = document.createElement('img');
+          zoomed.src = img.src;
+          overlay.appendChild(zoomed);
+          overlay.addEventListener('click', () => overlay.remove());
+          document.body.appendChild(overlay);
+        });
+      }
     },
   };
 };

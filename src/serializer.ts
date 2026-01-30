@@ -22,17 +22,45 @@ export class MlxNotebookSerializer implements vscode.NotebookSerializer {
           'matlab'
         );
 
-        if (cell.outputs && cell.outputs.length > 0) {
-          const text = formatOutputs(cell.outputs);
-          cellObj.outputs = [
-            new vscode.NotebookCellOutput([
-              vscode.NotebookCellOutputItem.json(
-                { outputs: cell.outputs, source: 'cached' },
-                'application/mlx-output+json'
-              ),
-              vscode.NotebookCellOutputItem.text(text, 'text/plain'),
-            ]),
+        const hasOutputs = (cell.outputs && cell.outputs.length > 0);
+        const hasFigures = (cell.figures && cell.figures.length > 0);
+        const hasText = !!cell.textOutput;
+
+        if (hasOutputs || hasFigures || hasText) {
+          const payload: Record<string, unknown> = { source: 'cached' };
+          if (hasOutputs) payload.outputs = cell.outputs;
+          if (hasFigures) payload.figures = cell.figures;
+          if (hasText) payload.text = cell.textOutput;
+
+          const items: vscode.NotebookCellOutputItem[] = [
+            vscode.NotebookCellOutputItem.json(payload, 'application/mlx-output+json'),
           ];
+
+          // Add plain text fallback
+          const parts: string[] = [];
+          if (hasOutputs) parts.push(formatOutputs(cell.outputs!));
+          if (hasText) parts.push(cell.textOutput!);
+          if (parts.length > 0) {
+            items.push(vscode.NotebookCellOutputItem.text(parts.join('\n\n'), 'text/plain'));
+          }
+
+          cellObj.outputs = [new vscode.NotebookCellOutput(items)];
+
+          // Add separate image outputs for figures so VS Code renders them natively
+          if (hasFigures) {
+            for (const fig of cell.figures!) {
+              let base64 = fig.data;
+              if (base64.startsWith('data:image/png;base64,')) {
+                base64 = base64.substring('data:image/png;base64,'.length);
+              }
+              const bytes = Buffer.from(base64, 'base64');
+              cellObj.outputs.push(
+                new vscode.NotebookCellOutput([
+                  vscode.NotebookCellOutputItem.bytes(bytes, 'image/png'),
+                ])
+              );
+            }
+          }
         }
 
         return cellObj;

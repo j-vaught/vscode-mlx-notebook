@@ -2,6 +2,8 @@ export interface MlxCell {
   kind: 'code' | 'markup';
   content: string;
   outputs?: MlxOutput[];
+  figures?: MlxFigure[];
+  textOutput?: string;
 }
 
 export interface MlxOutput {
@@ -12,8 +14,18 @@ export interface MlxOutput {
   columns: number;
 }
 
+export interface MlxFigure {
+  data: string; // base64 PNG or data URI
+}
+
 export interface OutputMap {
-  [codeRegionIndex: number]: MlxOutput[];
+  [codeRegionIndex: number]: MlxRegionOutputs;
+}
+
+export interface MlxRegionOutputs {
+  variables: MlxOutput[];
+  figures: MlxFigure[];
+  text: string[];
 }
 
 export interface MlxExecutionResult {
