@@ -38,7 +38,11 @@ export function activate(context: vscode.ExtensionContext) {
           await engine.start();
         }
 
-        const result: MatlabResult = await engine.execute(cell.document.getText());
+        // cd MATLAB to the notebook's directory so helper .m files are on path
+        const notebookDir = notebook.uri.fsPath.replace(/[/\\][^/\\]+$/, '');
+        const cdCode = `cd('${notebookDir.replace(/'/g, "''")}');\n`;
+
+        const result: MatlabResult = await engine.execute(cdCode + cell.document.getText());
 
         const outputItems: vscode.NotebookCellOutputItem[] = [];
         const jsonPayload: Record<string, unknown> = { outputs: [], source: 'live' };
