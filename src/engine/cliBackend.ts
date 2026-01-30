@@ -118,21 +118,38 @@ save('${this.workspacePath.replace(/\\/g, '\\\\')}');
     const platform = process.platform;
 
     if (platform === 'darwin') {
-      // macOS: check /Applications for MATLAB
-      const appDir = '/Applications';
-      if (fs.existsSync(appDir)) {
-        const apps = fs.readdirSync(appDir);
-        const matlabApps = apps
-          .filter((app) => app.startsWith('MATLAB_') && app.endsWith('.app'))
-          .sort()
-          .reverse();
-
-        if (matlabApps.length > 0) {
-          const latestApp = matlabApps[0];
-          const matlabPath = path.join(appDir, latestApp, 'bin', 'matlab');
-          if (fs.existsSync(matlabPath)) {
-            return matlabPath;
+      // macOS: check common application directories for MATLAB
+      const searchDirs = ['/Applications'];
+      // Also search mounted volumes (e.g. /Volumes/MacShare/Applications)
+      try {
+        const volumes = fs.readdirSync('/Volumes');
+        for (const vol of volumes) {
+          const volApps = path.join('/Volumes', vol, 'Applications');
+          if (fs.existsSync(volApps)) {
+            searchDirs.push(volApps);
           }
+        }
+      } catch {
+        // ignore
+      }
+
+      for (const appDir of searchDirs) {
+        try {
+          const apps = fs.readdirSync(appDir);
+          const matlabApps = apps
+            .filter((app: string) => app.startsWith('MATLAB_') && app.endsWith('.app'))
+            .sort()
+            .reverse();
+
+          if (matlabApps.length > 0) {
+            const latestApp = matlabApps[0];
+            const matlabPath = path.join(appDir, latestApp, 'bin', 'matlab');
+            if (fs.existsSync(matlabPath)) {
+              return matlabPath;
+            }
+          }
+        } catch {
+          // skip inaccessible directories
         }
       }
       throw new Error('MATLAB not found on macOS. Install MATLAB or specify matlabPath.');
