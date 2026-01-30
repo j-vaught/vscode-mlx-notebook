@@ -11,15 +11,23 @@ export function activate(context: vscode.ExtensionContext) {
     )
   );
 
-  // Register a no-op controller so VS Code doesn't prompt for a kernel
+  // Read-only controller prevents VS Code from prompting for a kernel
+  // or falling back to the MathWorks MATLAB extension's kernel
   const controller = vscode.notebooks.createNotebookController(
     'mlx-readonly',
     'mlx-notebook',
-    'MATLAB (read-only)'
+    'Read-only (cached output)'
   );
   controller.supportedLanguages = ['matlab'];
   controller.supportsExecutionOrder = false;
-  controller.executeHandler = () => {};
+  controller.executeHandler = (_cells, _notebook, ctrl) => {
+    // No-op: this is a read-only viewer
+    for (const cell of _cells) {
+      const exec = ctrl.createNotebookCellExecution(cell);
+      exec.start();
+      exec.end(true);
+    }
+  };
   context.subscriptions.push(controller);
 
   context.subscriptions.push(
