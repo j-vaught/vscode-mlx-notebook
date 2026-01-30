@@ -336,6 +336,11 @@ async function testDocumentBuilder() {
 async function main() {
   await testDocumentBuilder();
   await testRoundTrip(samplePath, 'sample');
+  await testRoundTrip(join(__dirname, 'fixtures', 'poleLocations.mlx'), 'poleLocations');
+  await testRoundTrip(join(__dirname, 'fixtures', 'PID.mlx'), 'PID');
+  await testRoundTrip(join(__dirname, 'fixtures', 'mlmodel.mlx'), 'mlmodel');
+  await testRoundTrip(join(__dirname, 'fixtures', 'timeResponse.mlx'), 'timeResponse');
+  await testRoundTrip(join(__dirname, 'fixtures', 'rootLocus.mlx'), 'rootLocus');
   await testRoundTrip(hwPath, 'HW_1_manual');
 
   console.log(`\n${'='.repeat(60)}`);
