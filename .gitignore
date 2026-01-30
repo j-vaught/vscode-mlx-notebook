@@ -3,3 +3,5 @@ dist/
 *.vsix
 .vscode-test/
 ._*
+.DS_Store
+dist/**/*.map
