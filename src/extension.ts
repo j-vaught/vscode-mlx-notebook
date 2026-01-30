@@ -52,10 +52,6 @@ export function activate(context: vscode.ExtensionContext) {
         // Figure outputs
         if (result.figures && result.figures.length > 0) {
           (jsonPayload as any).figures = result.figures;
-          for (const fig of result.figures) {
-            const bytes = Buffer.from(fig.data, 'base64');
-            outputItems.push(new vscode.NotebookCellOutputItem(bytes, 'image/png'));
-          }
         }
 
         // Add JSON output for renderer

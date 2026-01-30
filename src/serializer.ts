@@ -45,22 +45,6 @@ export class MlxNotebookSerializer implements vscode.NotebookSerializer {
           }
 
           cellObj.outputs = [new vscode.NotebookCellOutput(items)];
-
-          // Add separate image outputs for figures so VS Code renders them natively
-          if (hasFigures) {
-            for (const fig of cell.figures!) {
-              let base64 = fig.data;
-              if (base64.startsWith('data:image/png;base64,')) {
-                base64 = base64.substring('data:image/png;base64,'.length);
-              }
-              const bytes = Buffer.from(base64, 'base64');
-              cellObj.outputs.push(
-                new vscode.NotebookCellOutput([
-                  vscode.NotebookCellOutputItem.bytes(bytes, 'image/png'),
-                ])
-              );
-            }
-          }
         }
 
         return cellObj;
