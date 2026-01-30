@@ -1,0 +1,44 @@
+{
+  "name": "vscode-mlx-notebook",
+  "displayName": "MATLAB Live Script Viewer",
+  "description": "Read-only notebook viewer for MATLAB Live Script (.mlx) files",
+  "version": "0.1.0",
+  "publisher": "j-vaught",
+  "author": "J.C. Vaught",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/j-vaught/vscode-mlx-notebook"
+  },
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": ["Notebooks"],
+  "activationEvents": ["onNotebook:mlx-notebook"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "notebooks": [
+      {
+        "type": "mlx-notebook",
+        "displayName": "MATLAB Live Script",
+        "selector": [
+          { "filenamePattern": "*.mlx" }
+        ]
+      }
+    ]
+  },
+  "scripts": {
+    "build": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "lint": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.75.0",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^4.3.0",
+    "jszip": "^3.10.0"
+  }
+}
