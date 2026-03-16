@@ -1,4 +1,6 @@
 const esbuild = require('esbuild');
+const fs = require('fs');
+const path = require('path');
 
 const watch = process.argv.includes('--watch');
 
@@ -27,12 +29,23 @@ const rendererOpts = {
   minify: !watch,
 };
 
+// Copy non-JS assets that need to live alongside the bundle
+function copyAssets() {
+  fs.mkdirSync('dist', { recursive: true });
+  fs.copyFileSync(
+    path.join('src', 'engine', 'matlab_bridge.py'),
+    path.join('dist', 'matlab_bridge.py')
+  );
+}
+
 if (watch) {
+  copyAssets();
   Promise.all([
     esbuild.context(opts).then(ctx => ctx.watch()),
     esbuild.context(rendererOpts).then(ctx => ctx.watch()),
   ]);
 } else {
+  copyAssets();
   Promise.all([
     esbuild.build(opts),
     esbuild.build(rendererOpts),

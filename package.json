@@ -2,7 +2,7 @@
   "name": "vscode-mlx-notebook",
   "displayName": "MATLAB Live Script Editor",
   "description": "Edit, execute, and save MATLAB Live Script (.mlx) files as notebooks",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "publisher": "j-vaught",
   "author": "J.C. Vaught",
   "license": "MIT",
@@ -82,7 +82,8 @@
   "scripts": {
     "build": "node esbuild.js",
     "watch": "node esbuild.js --watch",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "package": "npm run build && vsce package --out vscode-mlx-notebook.vsix"
   },
   "devDependencies": {
     "@types/node": "^25.1.0",

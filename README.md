@@ -2,6 +2,12 @@
 
 A Visual Studio Code extension for editing, executing, and saving MATLAB Live Script (.mlx) files as native VS Code notebooks.
 
+## Motivation
+
+I built this extension out of frustration with MATLAB's built-in editor. As a graduate student, I preferred working in VS Code where I could leverage tools like GitHub Copilot for code assistance. This extension bridges that gap by letting you edit and run MATLAB Live Scripts directly in VS Code, with the full notebook experience you'd expect.
+
+If you need an additional feature or run into a bug, email me at jvaught@sc.edu.
+
 ## Features
 
 - **Native Notebook Experience**: Opens .mlx files as VS Code notebooks with seamless code and markdown cell editing
@@ -83,7 +89,6 @@ Configure the extension via VS Code settings (`Preferences > Settings` or `setti
 
 ## Known Limitations
 
-- **LaTeX Rendering**: Inline LaTeX equations in markdown cells are not rendered; they display as raw code
 - **No Debugger Integration**: MATLAB debugger breakpoints and step-through debugging are not supported
 - **Static Figure Captures**: Figures are captured as static PNG images; interactive MATLAB figure tools are not available
 - **Limited Output Types**: Complex output types (apps, animations, interactive plots) may not display correctly

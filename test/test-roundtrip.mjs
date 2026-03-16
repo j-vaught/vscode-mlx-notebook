@@ -7,8 +7,8 @@ import { XMLParser } from 'fast-xml-parser';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const samplePath = join(__dirname, 'fixtures', 'sample.mlx');
 
-// Also test HW file if available
-const hwPath = '/Volumes/MacShare/graduate-coursework/Sp26/EMCH792/HW1/ws/HW_1_manual.mlx';
+// Also test HW file if available (set MLX_HW_PATH env var to a local .mlx file)
+const hwPath = process.env.MLX_HW_PATH || '';
 
 // Import the built modules - we test against the source logic directly
 // Since the extension bundles for vscode, we replicate the key logic here
